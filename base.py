@@ -122,7 +122,7 @@ def create_codedeploy_app(session, service_role):
                 deploymentConfigName='CodeDeployDefault.OneAtATime',
                 ec2TagFilters=[
                         {
-                            'Key': 'name',
+                            'Key': 'Name',
                             'Value': APPLICATION_NAME,
                             'Type': 'KEY_AND_VALUE'
                         },
