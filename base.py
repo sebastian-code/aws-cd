@@ -1,32 +1,30 @@
-import boto3
-from botocore.exceptions import ClientError, DataNotFoundError
-import json
 import time
 import random
+import string
+import os
+from dotenv import load_dotenv
 
-SERVICE_ROLE_NAME = 'codedeploy'
-INSTANCE_PROFILE_NAME = 'codedeploy_ec2'
+import boto3
+from botocore.exceptions import ClientError, DataNotFoundError
+
+
+dotenv_path = os.path.join(os.path.dirname(__file__), '.env')
+load_dotenv(dotenv_path)
+
+SERVICE_ROLE_NAME = os.environ.get("SERVICE_ROLE_NAME")
+INSTANCE_PROFILE_NAME = os.environ.get("INSTANCE_PROFILE_NAME")
 APPLICATION_NAME = input("Application Name: ")
 AMI_ID = input("AMI ID: ")
 
 session = boto3.session.Session(profile_name=APPLICATION_NAME)
 
+
 def get_random_password():
-    alphabet = "abcdefghijklmnopqrstuvwxyz123456789"
-    upperalphabet = alphabet.upper()
-    pw_len = 16
-    pwlist = []
+    password = ("".join([random.SystemRandom().choice(
+                string.digits +
+                string.ascii_letters) for i in range(16)]))
+    return password
 
-    for i in range(pw_len//3):
-        pwlist.append(alphabet[random.randrange(len(alphabet))])
-        pwlist.append(upperalphabet[random.randrange(len(upperalphabet))])
-        pwlist.append(str(random.randrange(10)))
-    for i in range(pw_len-len(pwlist)):
-        pwlist.append(alphabet[random.randrange(len(alphabet))])
-
-    random.shuffle(pwlist)
-    pwstring = "".join(pwlist)
-    return pwstring
 
 def create_service_role(session):
     iam = session.client('iam')
@@ -39,7 +37,7 @@ def create_service_role(session):
     iam_resource = session.resource('iam')
     role = iam_resource.Role(name=SERVICE_ROLE_NAME)
     while True:
-        try: 
+        try:
             response = role.attach_policy(
                 PolicyArn='arn:aws:iam::aws:policy/service-role/AWSCodeDeployRole'
             )
@@ -50,6 +48,7 @@ def create_service_role(session):
 
     return iam_resource.Role(name=SERVICE_ROLE_NAME)
 
+
 def get_service_role(session):
     iam = session.resource('iam')
     role = iam.Role(SERVICE_ROLE_NAME)
@@ -57,6 +56,7 @@ def get_service_role(session):
         role.role_id
     except(ClientError, DataNotFoundError) as e:
         role = create_service_role(session)
+
 
 def create_instance_profile(session):
     iam = session.client('iam')
@@ -69,14 +69,16 @@ def create_instance_profile(session):
     iam_resource = session.resource('iam')
     role = iam_resource.Role(name=INSTANCE_PROFILE_NAME)
     while True:
-        try: 
+        try:
             response = iam.put_role_policy(
                 RoleName=INSTANCE_PROFILE_NAME,
                 PolicyName='codedeploy_ec2_permissions',
                 PolicyDocument=open('codedeploy_ec2_permissions.json').read(),
             )
+
         except(ClientError, DataNotFoundError) as e:
             time.sleep(2)
+
         else:
             break
 
@@ -90,14 +92,16 @@ def create_instance_profile(session):
                 )
         instance_profile = iam_resource.InstanceProfile(INSTANCE_PROFILE_NAME)
     while True:
-        try: 
+        try:
             response = instance_profile.add_role(
                 RoleName=INSTANCE_PROFILE_NAME,
             )
+
         except(ClientError, DataNotFoundError) as e:
             time.sleep(2)
         else:
             break
+
     return instance_profile
 
 
@@ -106,9 +110,12 @@ def get_instance_profile(session):
     role = iam.Role(INSTANCE_PROFILE_NAME)
     try:
         role.role_id
+
     except(ClientError, DataNotFoundError) as e:
         role = create_instance_profile(session)
+
     return role
+
 
 def create_codedeploy_app(session, service_role):
     DEPLOYMENT_GROUP_NAME = APPLICATION_NAME + '_deployment_group'
@@ -127,11 +134,12 @@ def create_codedeploy_app(session, service_role):
                             'Type': 'KEY_AND_VALUE'
                         },
                     ],
-                    serviceRoleArn=service_role.arn
+                serviceRoleArn=service_role.arn
                 )
     print('CodeDeploy application: ' + APPLICATION_NAME)
     print('DeploymentGroup: ' + DEPLOYMENT_GROUP_NAME)
     return codedeploy.get_application(applicationName=APPLICATION_NAME)
+
 
 def get_codedeploy_app(session):
     codedeploy = session.client('codedeploy')
@@ -141,6 +149,7 @@ def get_codedeploy_app(session):
         iam = session.resource('iam')
         service_role = iam.Role(SERVICE_ROLE_NAME)
         app = create_codedeploy_app(session, service_role)
+
 
 def create_ec2_instance(session):
     ec2 = session.client('ec2')
@@ -170,11 +179,13 @@ def create_ec2_instance(session):
                 ]
             )
 
+
 def get_ec2_instance(session):
     ec2 = session.resource('ec2')
     instances = ec2.instances.filter(Filters=[{'Name': 'tag:key', 'Values': [APPLICATION_NAME]}])
     if len(list(instances)) == 0:
         return create_ec2_instance(session)
+
 
 def get_rds_instance(session):
     RDS_MASTER_USER = 'dbadmin'
@@ -204,6 +215,7 @@ def get_rds_instance(session):
     )
     print('RDS database admin: ' + RDS_MASTER_USER)
     print('RDS database password: ' + password)
+
 
 def create_s3_buckets(session):
     APP_BUCKET_NAME = APPLICATION_NAME + '-app'
