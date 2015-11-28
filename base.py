@@ -41,8 +41,10 @@ def create_service_role(session):
             response = role.attach_policy(
                 PolicyArn='arn:aws:iam::aws:policy/service-role/AWSCodeDeployRole'
             )
-        except(ClientError, DataNotFoundError) as e:
+
+        except(ClientError, DataNotFoundError):
             time.sleep(2)
+
         else:
             break
 
@@ -54,7 +56,8 @@ def get_service_role(session):
     role = iam.Role(SERVICE_ROLE_NAME)
     try:
         role.role_id
-    except(ClientError, DataNotFoundError) as e:
+
+    except(ClientError, DataNotFoundError):
         role = create_service_role(session)
 
 
@@ -76,7 +79,7 @@ def create_instance_profile(session):
                 PolicyDocument=open('codedeploy_ec2_permissions.json').read(),
             )
 
-        except(ClientError, DataNotFoundError) as e:
+        except(ClientError, DataNotFoundError):
             time.sleep(2)
 
         else:
@@ -85,20 +88,23 @@ def create_instance_profile(session):
     instance_profile = iam_resource.InstanceProfile(INSTANCE_PROFILE_NAME)
     try:
         instance_profile.arn
+
     except ClientError:
         response = iam.create_instance_profile(
                     InstanceProfileName=INSTANCE_PROFILE_NAME,
                     Path='/'
                 )
         instance_profile = iam_resource.InstanceProfile(INSTANCE_PROFILE_NAME)
+
     while True:
         try:
             response = instance_profile.add_role(
                 RoleName=INSTANCE_PROFILE_NAME,
             )
 
-        except(ClientError, DataNotFoundError) as e:
+        except(ClientError, DataNotFoundError):
             time.sleep(2)
+            
         else:
             break
 
@@ -111,7 +117,7 @@ def get_instance_profile(session):
     try:
         role.role_id
 
-    except(ClientError, DataNotFoundError) as e:
+    except(ClientError, DataNotFoundError):
         role = create_instance_profile(session)
 
     return role
