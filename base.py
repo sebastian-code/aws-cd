@@ -20,7 +20,9 @@ session = boto3.session.Session(profile_name=APPLICATION_NAME)
 
 
 def get_random_password():
-    password = ("".join([random.SystemRandom().choice(string.digits + string.ascii_letters + string.punctuation) for i in range(16)]))
+    password = ("".join([random.SystemRandom().choice(
+                string.digits +
+                string.ascii_letters) for i in range(16)]))
     return password
 
 
